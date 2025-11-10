@@ -38,9 +38,10 @@ func (p *ShardingPlugin) Initialize(db *gorm.DB) error {
 func (p *ShardingPlugin) BeforeQuery(db *gorm.DB) {
 	fmt.Println("before query")
 	vars := getVars(db)
-	fmt.Println("before query", vars)
-	model := db.Statement.Model
-	fmt.Printf("查询的模型是: %T\n", model)
+	first, second := getShardingKey(db)
+	tableName := db.Statement.Table
+	tableName = getTableName(first, second, vars, tableName)
+
 }
 
 func (p *ShardingPlugin) BeforeCreate(db *gorm.DB) {

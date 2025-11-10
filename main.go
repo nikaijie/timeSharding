@@ -19,6 +19,7 @@ var (
 )
 
 type Order struct {
+	gorm.Model
 	OrderID   uint64    `gorm:"primaryKey" timeSharding:"first:order_id"` // 订单ID，一级索引
 	UserID    uint64    `sharding:"second:user_id"`                       // 用户ID，二级索引
 	Amount    float64   // 订单金额
@@ -66,12 +67,18 @@ func main() {
 	fmt.Printf("创建订单成功，订单ID: %d\n", newOrder.OrderID)
 
 	var queryOrder Order
-	// 注意：我们的自定义中间件也将在这里介入，拦截这个 Find 请求
-	result = db.Where("order_id = ?", newOrder.OrderID).
+	startTime := time.Date(2024, 5, 20, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(2024, 5, 21, 23, 59, 59, 0, time.UTC)
+
+	// 使用 created_at 范围查询
+	res := db.Where("order_id = ?", newOrder.OrderID).
 		Where("amount = ?", 90).
+		Where("created_at BETWEEN ? AND ?", startTime, endTime).
 		First(&queryOrder)
-	if result.Error != nil {
-		panic(fmt.Sprintf("查询订单失败: %v", result.Error))
+
+	if res.Error != nil {
+		fmt.Println("查询失败:", res.Error)
+		return
 	}
-	fmt.Printf("查询订单成功: %+v\n", queryOrder)
+	fmt.Printf("查询成功: %+v\n", queryOrder)
 }
