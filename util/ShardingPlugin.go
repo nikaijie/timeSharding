@@ -45,7 +45,7 @@ func (p *ShardingPlugin) BeforeQuery(db *gorm.DB) {
 }
 
 func (p *ShardingPlugin) BeforeCreate(db *gorm.DB) {
-
+	getTables(db)
 }
 
 func (p *ShardingPlugin) BeforeUpdate(db *gorm.DB) {

@@ -1,25 +1,15 @@
 package main
 
 import (
+	"awesomeProject8/database"
 	"awesomeProject8/util"
-	"context"
 	"fmt"
 	"time"
-
-	"github.com/go-redis/redis/v8"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
-// 定义全局上下文和 Redis 客户端变量
-var (
-	ctx         = context.Background()
-	redisClient *redis.Client
-)
+// 定义全局数据库管理器
 
 type Order struct {
-	gorm.Model
 	OrderID   uint64    `gorm:"primaryKey" timeSharding:"first:order_id"` // 订单ID，一级索引
 	UserID    uint64    `sharding:"second:user_id"`                       // 用户ID，二级索引
 	Amount    float64   // 订单金额
@@ -27,26 +17,21 @@ type Order struct {
 }
 
 func main() {
-	// --- 步骤 1: 初始化 Redis 客户端 ---
-	// 这里我们先初始化 Redis，虽然还不用它，但这是标准流程
-	redisClient = redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "",
-		DB:       0,
-	})
-	if err := redisClient.Ping(ctx).Err(); err != nil {
-		panic(fmt.Sprintf("Redis 连接失败: %v", err))
-	}
-	fmt.Println("Redis 连接成功")
+	// --- 步骤 1: 初始化数据库管理器 ---
+	mysqlDSN := "root:123456@tcp(localhost:3306)/order_db?charset=utf8mb4&parseTime=True&loc=Local"
+	redisAddr := "127.0.0.1:6379"
+	redisPassword := ""
+	redisDB := 0
 
-	dsn := "root:123456789@tcp(127.0.0.1:3306)/order_db?charset=utf8mb4&parseTime=True&loc=Local"
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
-	})
+	var err error
+	database.DbManager, err = database.NewDatabaseManager(mysqlDSN, redisAddr, redisPassword, redisDB)
 	if err != nil {
-		panic(fmt.Sprintf("数据库连接失败: %v", err))
+		panic(fmt.Sprintf("数据库管理器初始化失败: %v", err))
 	}
-	fmt.Println("数据库连接成功")
+	fmt.Println("数据库管理器初始化成功")
+
+	// 使用数据库管理器中的 MySQL 连接
+	db := database.DbManager.MySQL
 	db.Use(util.NewShardingPlugin())
 
 	err = db.AutoMigrate(&Order{})
