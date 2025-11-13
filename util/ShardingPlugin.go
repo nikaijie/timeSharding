@@ -1,6 +1,8 @@
 package util
 
 import (
+	"awesomeProject8/util/create"
+	"awesomeProject8/util/query"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -37,15 +39,21 @@ func (p *ShardingPlugin) Initialize(db *gorm.DB) error {
 // BeforeQuery 在查询记录之前执行
 func (p *ShardingPlugin) BeforeQuery(db *gorm.DB) {
 	fmt.Println("before query")
-	vars := getVars(db)
-	first, second := getShardingKey(db)
+	vars := query.GetVars(db)
+	if len(vars) == 0 && db.RowsAffected == 89 {
+		return
+	}
+	first, second := query.GetShardingKey(db)
 	tableName := db.Statement.Table
-	tableName = getTableName(first, second, vars, tableName)
+	tableName = query.GetTableName(first, second, vars, tableName)
 
 }
 
 func (p *ShardingPlugin) BeforeCreate(db *gorm.DB) {
-	getTables(db)
+	fmt.Println("before create")
+	if err := create.GetTable(db); err != nil {
+		return
+	}
 }
 
 func (p *ShardingPlugin) BeforeUpdate(db *gorm.DB) {

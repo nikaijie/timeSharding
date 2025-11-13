@@ -1,4 +1,4 @@
-package util
+package query
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func getVars(db *gorm.DB) map[string]interface{} {
+func GetVars(db *gorm.DB) map[string]interface{} {
 	stmt := db.Statement
 	vars := make(map[string]interface{})
 	if whereClause, ok := stmt.Clauses["WHERE"]; ok {
@@ -26,7 +26,7 @@ func getVars(db *gorm.DB) map[string]interface{} {
 	return vars
 }
 
-func getShardingKey(db *gorm.DB) ([]string, []string) {
+func GetShardingKey(db *gorm.DB) ([]string, []string) {
 	model := db.Statement.Model
 	modelType := reflect.TypeOf(model).Elem()
 	fmt.Printf("查询的模型是: %T\n", modelType)
@@ -53,6 +53,6 @@ func getShardingKey(db *gorm.DB) ([]string, []string) {
 	return first, second
 }
 
-func getTableName(first []string, second []string, vars map[string]interface{}, tableName string) string {
+func GetTableName(first []string, second []string, vars map[string]interface{}, tableName string) string {
 	return ""
 }

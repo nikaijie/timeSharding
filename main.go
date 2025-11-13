@@ -41,6 +41,7 @@ func main() {
 	fmt.Println("数据表迁移成功")
 
 	newOrder := Order{
+		OrderID:   22222244449,
 		UserID:    1001,
 		Amount:    99.99,
 		CreatedAt: time.Now(),
@@ -51,19 +52,4 @@ func main() {
 	}
 	fmt.Printf("创建订单成功，订单ID: %d\n", newOrder.OrderID)
 
-	var queryOrder Order
-	startTime := time.Date(2024, 5, 20, 0, 0, 0, 0, time.UTC)
-	endTime := time.Date(2024, 5, 21, 23, 59, 59, 0, time.UTC)
-
-	// 使用 created_at 范围查询
-	res := db.Where("order_id = ?", newOrder.OrderID).
-		Where("amount = ?", 90).
-		Where("created_at BETWEEN ? AND ?", startTime, endTime).
-		First(&queryOrder)
-
-	if res.Error != nil {
-		fmt.Println("查询失败:", res.Error)
-		return
-	}
-	fmt.Printf("查询成功: %+v\n", queryOrder)
 }
