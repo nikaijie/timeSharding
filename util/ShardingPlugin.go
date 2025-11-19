@@ -65,6 +65,12 @@ func (p *ShardingPlugin) BeforeDelete(db *gorm.DB) {
 }
 
 func (p *ShardingPlugin) AfterCreate(db *gorm.DB) {
+	fmt.Println("before after")
+	err := create.CreateCache(db)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 }
 

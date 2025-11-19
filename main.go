@@ -41,7 +41,7 @@ func main() {
 	fmt.Println("数据表迁移成功")
 
 	newOrder := Order{
-		OrderID:   22222244449,
+		OrderID:   22222244465,
 		UserID:    1001,
 		Amount:    99.99,
 		CreatedAt: time.Now(),
