@@ -4,6 +4,7 @@ import (
 	"awesomeProject8/database"
 	"awesomeProject8/util/query"
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -41,7 +42,7 @@ func createFirst(db *gorm.DB, arr []string) error {
 		if nameMap[field.DBName] == false {
 			continue
 		}
-		tableName := "first" + stmt.Table + field.DBName
+		tableName := "first_" + stmt.Table + "_" + field.DBName
 
 		// 尝试从Redis获取map
 		result, err := database.DbManager.Redis.HGetAll(ctx, tableName).Result()
@@ -87,39 +88,85 @@ func createSecond(db *gorm.DB, arr []string) error {
 		if nameMap[field.DBName] == false {
 			continue
 		}
-		model := fmt.Sprintf("%v", stmt.Model)
-		key := "second" + model + field.DBName
-
-		// 获取Redis中的Set数据
-		result, err := database.DbManager.Redis.SMembers(ctx, key).Result()
-		if err != nil {
-			fmt.Printf("从 Redis 获取Set失败: %v\n", err)
-			return err
+		value, _ := field.ValueOf(stmt.Context, reflect.ValueOf(stmt.Dest))
+		valueStr := fmt.Sprintf("%v", value)
+		modelType := reflect.TypeOf(stmt.Model)
+		if modelType.Kind() == reflect.Ptr {
+			modelType = modelType.Elem()
 		}
+		modelName := modelType.Name()
+		hashKey := "second_" + modelName + "_" + field.DBName
 		tableName := stmt.Table
 
-		// 检查result中是否包含tableName
-		found := false
-		for _, item := range result {
-			if item == tableName {
-				found = true
-				break
-			}
+		// 获取Redis中的Hash数据
+		result, err := database.DbManager.Redis.HGetAll(ctx, hashKey).Result()
+		if err != nil {
+			fmt.Printf("从 Redis 获取Hash失败: %v\n", err)
+			return err
 		}
 
-		// 如果没有包含tableName，则添加进去并保存到Redis
-		if !found {
-			err := database.DbManager.Redis.SAdd(ctx, key, tableName).Err()
-			if err != nil {
-				fmt.Printf("添加tableName到Redis Set失败: %v\n", err)
+		// 如果Hash不存在（result为空），创建新的Hash
+		if len(result) == 0 {
+			fmt.Printf("Redis中不存在Hash key %s，创建新的Hash\n", hashKey)
+			result = make(map[string]string)
+		}
+
+		// 检查是否存在valueStr这个field
+		if setJSON, exists := result[valueStr]; exists {
+			// 解析JSON字符串为slice
+			var tableSet []string
+			if err := json.Unmarshal([]byte(setJSON), &tableSet); err != nil {
+				fmt.Printf("解析JSON失败: %v\n", err)
 				return err
 			}
-			fmt.Printf("成功将 %s 添加到Redis Set，key: %s\n", tableName, key)
+
+			// 检查tableName是否已在Set中
+			found := false
+			for _, table := range tableSet {
+				if table == tableName {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				// 添加tableName到Set中
+				tableSet = append(tableSet, tableName)
+				newJSON, err := json.Marshal(tableSet)
+				if err != nil {
+					fmt.Printf("序列化JSON失败: %v\n", err)
+					return err
+				}
+
+				// 更新Hash中的field
+				err = database.DbManager.Redis.HSet(ctx, hashKey, valueStr, string(newJSON)).Err()
+				if err != nil {
+					fmt.Printf("更新Hash失败: %v\n", err)
+					return err
+				}
+				fmt.Printf("成功将 %s 添加到valueStr %s 的Set中\n", tableName, valueStr)
+			} else {
+				fmt.Printf("tableName %s 已存在于valueStr %s 的Set中\n", tableName, valueStr)
+			}
 		} else {
-			fmt.Printf("tableName %s 已存在于Redis Set中\n", tableName)
+			// 如果不存在valueStr这个field，创建新的Set
+			tableSet := []string{tableName}
+			setJSON, err := json.Marshal(tableSet)
+			if err != nil {
+				fmt.Printf("序列化JSON失败: %v\n", err)
+				return err
+			}
+
+			// 设置Hash中的field
+			err = database.DbManager.Redis.HSet(ctx, hashKey, valueStr, string(setJSON)).Err()
+			if err != nil {
+				fmt.Printf("设置Hash失败: %v\n", err)
+				return err
+			}
+			fmt.Printf("创建新Set，valueStr: %s, 包含: %s\n", valueStr, tableName)
 		}
 
-		fmt.Printf("获取到Redis Set数据，key: %s, 内容: %v\n", key, result)
+		fmt.Printf("字段名: %s, 数据库列名: %s, 值: %s\n", field.Name, field.DBName, valueStr)
 	}
 	return nil
 }

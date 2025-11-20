@@ -10,8 +10,8 @@ import (
 // 定义全局数据库管理器
 
 type Order struct {
-	OrderID   uint64    `gorm:"primaryKey" timeSharding:"first:order_id"` // 订单ID，一级索引
-	UserID    uint64    `sharding:"second:user_id"`                       // 用户ID，二级索引
+	OrderID   uint64    `gorm:"primaryKey" timeSharding:"first:order_id"`         // 订单ID，一级索引
+	UserID    uint64    `sharding:"second:user_id" timeSharding:"second:user_id"` // 用户ID，二级索引
 	Amount    float64   // 订单金额
 	CreatedAt time.Time `sharding:"first:created_at"` // 创建时间，一级索引
 }
@@ -41,7 +41,7 @@ func main() {
 	fmt.Println("数据表迁移成功")
 
 	newOrder := Order{
-		OrderID:   22222244465,
+		OrderID:   22222244473,
 		UserID:    1001,
 		Amount:    99.99,
 		CreatedAt: time.Now(),
